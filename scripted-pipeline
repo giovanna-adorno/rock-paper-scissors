@@ -1,43 +1,31 @@
 node {
-   
-   //Declare a global variable for mvnHome
 
-   stage('Version') { 
-
-	  //build job: 'version-check'
-          
+   stage('Extrair Codigo Fonte') {
+         echo 'Extraindo codigo fonte...'
+         checkout([$class: 'GitSCM', branches: [[name: '*/main']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/profjoaomenk/rock-paper-scissors.git']]])
    }
 
-   stage('Environment') {
-       
-       // build job: 'environment-check'
-       
-   }
-
-   stage('Document') {
-   
-	  //build job: 'document-roshambo', parameters: [booleanParam(name: 'generate_javadoc', value: false), stringParam(name: 'javadoc_location', value: 'C:\\_javadoc00')]
+   stage('Build') {
+      echo 'Realizando o Build...'
+      sh '/opt/maven/bin/mvn clean install'
 
    }
 
-   stage('Compile'){
-  
-       // build job: 'compile-roshambo'
-   }
-   
-   stage('Acceptance') {
-       
-         //def response = input message: 'UAT Tests',   parameters: [choice(choices: 'Pass\nFail', description: 'Proceed or Abort?', name: 'Pass or Fail?')]
+   stage("Confirmação") {
+        script {
+               env.CONFIRM = input message: 'Confirma a execução do deploy?',
+parameters: [choice(name: 'CONFIRM', choices: 'Sim\nNao', description: 'Qual opção deve ser escolhida?')]
+           }
+          echo "Confirmação concluída"
+}
 
-   }
-   
-   stage('Conclusion') {
-      def response = input message: 'Whatcha think?', parameters: [choice(choices: 'Yes\nNo', description: 'Proceed or Abort?', name: 'Wasn\'t that cool?')]
-        
-      if (response=="Yes") {
-         echo "I agree!"
-      } else {
-         echo "You are hard to please."
-      }
-   }
+   stage('Deploy') {
+       if( env.CONFIRM == 'Sim' ){
+           echo 'Realizando o Deploy em Desenvolvimento...'
+            deploy adapters: [tomcat9(credentialsId: '4565ff30-faac-4ced-a5f0-4aa708161b18', path: '', url: 'http://localhost:8080')], contextPath: 'roshambo', onFailure: false, war: '**/*.war'
+       } else {
+           echo 'Deploy cancelado.'
+       }
+  }
+
 }
